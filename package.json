@@ -1,0 +1,40 @@
+{
+  "name": "regex-copy",
+  "version": "1.0.0",
+  "description": "Copy and remove files with glob pattern(**,*,{},!{}) and regular expression",
+  "bin": {
+    "regex-copy": "./regex-copy.js",
+    "rgcp": "./regex-copy.js"
+  },
+  "scripts": {
+    "dist:node": "tsc"
+  },
+  "main": "dist/node.js",
+  "keywords": [
+    "copy",
+    "remove",
+    "exclude",
+    "glob pattern",
+    "regular expression",
+    "regex",
+    "typescript"
+  ],
+  "type": "module",
+  "author": "Isitea <isitea@isitea.net> (https://isitea.net)",
+  "bugs": {
+    "url": "https://github.com/Isitea/regex-copy/issues"
+  },
+  "homepage": "https://github.com/Isitea/regex-copy#readme",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "regex-copy.js"
+  ],
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.29.0",
+    "@typescript-eslint/parser": "^5.29.0",
+    "eslint": "^8.18.0",
+    "typescript": "^4.7.4"
+  }
+}
