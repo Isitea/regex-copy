@@ -1,6 +1,6 @@
 import { statSync } from "node:fs";
 import { argv } from 'node:process';
-import { regexCopy, entryPoint } from "./dist/node.js";
+import { regexCopy, entryPoint } from "../dist/node.js";
 
 const [ exec, bin, ...args ] = argv;
 const opts = { exclude: [], remove: [], preserve: [], flat: 1, removeEmpty: true, test: false };

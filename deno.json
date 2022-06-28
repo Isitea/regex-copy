@@ -1,0 +1,32 @@
+{
+    "name": "regex-copy",
+    "version": "1.0.1",
+    "description": "Copy and remove files with glob pattern(**,*,{},!{}) and regular expression for Deno",
+    "main": "./mod.ts",
+    "tasks": {
+        "compile": "deno compile --allow-read --allow-write ./deno/bin/regex-copy.ts",
+        "regex-copy": "deno run --allow-read --allow-write ./deno/bin/regex-copy.ts",
+        "rgcp": "deno run --allow-read --allow-write ./deno/bin/regex-copy.ts",
+        "debug": "deno run --allow-read --allow-write --inspect-brk ./deno/bin/regex-copy.ts"
+    },
+    "keywords": [
+        "copy",
+        "remove",
+        "exclude",
+        "glob pattern",
+        "regular expression",
+        "regex",
+        "typescript",
+        "deno"
+    ],
+    "author": "Isitea <isitea@isitea.net> (https://isitea.net)",
+    "bugs": {
+        "url": "https://github.com/Isitea/regex-copy/issues"
+    },
+    "homepage": "https://github.com/Isitea/regex-copy#readme",
+    "license": "MIT",
+    "files": [
+        "deno",
+        "mod.ts"
+    ]
+}

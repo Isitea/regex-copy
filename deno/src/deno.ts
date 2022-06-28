@@ -1,30 +1,26 @@
-import { opendir, rmdir, readdir, cp, rm } from "node:fs/promises";
-import { type } from "node:os";
-import { posix } from "node:path";
-const absPath = posix.resolve;
-
 interface Path {
     src: string,
     base: string
 }
 
-interface Options {
-    enlist: Array<string>,
-    exclude: Array<string>,
-    remove: Array<string>,
-    preserve: Array<string>,
+export interface Options {
+    enlist?: Array<string | RegExp>,
+    exclude: Array<string | RegExp>,
+    remove: Array<string | RegExp>,
+    preserve: Array<string | RegExp>,
     flat: number,
     removeEmpty: boolean,
-    test: boolean
+    test?: boolean
 }
 
 interface OptionsInRegex {
-    enlist: Array<RegExp>,
+    enlist?: Array<RegExp>,
     exclude: Array<RegExp>,
     remove: Array<RegExp>,
     preserve: Array<RegExp>,
     flat: number,
-    removeEmpty: boolean
+    removeEmpty: boolean,
+    test?: boolean
 }
 
 type Paths = {
@@ -32,15 +28,15 @@ type Paths = {
 }
 
 export async function regexCopy( paths: Array<string>, opts: Options ): Promise<void> {
-    async function worker( { src, base }: Path ): Promise<Array<string>> {
-        for await ( const entry of await opendir( src ) ) {
+    async function worker( { src, base }: Path ): Promise<number> {
+        for await ( const entry of Deno.readDir( src ) ) {
             const fullpath = `${ src }/${ entry.name }`;
             const isInclude = ( regex: RegExp ): boolean => regex.test( fullpath );
-            if ( entry.isDirectory() ) {
+            if ( entry.isDirectory ) {
                 const isEmpty = await worker( { src: `${ src }/${ entry.name }`, base } );
-                if ( removeEmpty && isEmpty.length === 0 ) {
+                if ( removeEmpty && isEmpty === 0 ) {
                     if ( test ) console.log( `rm Dir: ${ src }/${ entry.name }` );
-                    else rmdir( fullpath );
+                    else Deno.remove( fullpath );
                 }
             }
             else {
@@ -49,30 +45,24 @@ export async function regexCopy( paths: Array<string>, opts: Options ): Promise<
                         console.log( `  From: ${ fullpath }` );
                         console.log( `cp  To: ${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
                     }
-                    else await cp( fullpath, `${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
+                    else await Deno.copyFile( fullpath, `${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
                 }
-                //else if ( test ) {
-                //    console.log( `cpPass: ${ fullpath }` )
-                //}
 
                 if ( remove.some( isInclude ) && !preserve.some( isInclude ) ) {
                     if ( test ) console.log( `rmFile: ${ fullpath }` )
-                    else await rm( fullpath );
+                    else await Deno.remove( fullpath );
                 }
-                //else if ( test ) {
-                //    console.log( `rmPass: ${ fullpath }` )
-                //}
             }
         }
 
-        return readdir( src );
+        return [ ...Deno.readDirSync( src ) ].length;
     }
     const dst = entryPoint( <string>paths.pop() );
-    const { flat = 1, removeEmpty = true, test = false }: Options = opts;
+    const { flat = 1, removeEmpty = true, test = false } = opts;
     const { enlist = [], exclude = [], remove = [], preserve = [] }: OptionsInRegex = <OptionsInRegex>Object.fromEntries( Object.entries( opts ).filter( ( [ , value ] ) => ( value instanceof Array ) ).map( ( [ key, value ] ) => [ key, value.map( Glob2Regex ) ] ) );
     enlist.push( ...paths.filter( path => !!path.match( /\*/ ) ).map( Glob2Regex ) );
     paths = paths.map( entryPoint );
-    let flag = {} as Paths;
+    const flag = {} as Paths;
     for ( const src of paths ) {
         if ( !flag[ src ] ) flag[ src ] = true;
         else continue;
@@ -81,7 +71,7 @@ export async function regexCopy( paths: Array<string>, opts: Options ): Promise<
 }
 
 export function entryPoint( source: string ): string {
-    return absPath( source.replace( /\\/g, "/" ).replace( /(!?{|\*).+$/, "" ) );
+    return Deno.realPathSync( source.replace( /\\/g, "/" ).replace( /(!?{|\*).+$/, "" ) );
 }
 
 function Glob2Regex( pattern: string | RegExp ): RegExp {
@@ -97,6 +87,6 @@ function Glob2Regex( pattern: string | RegExp ): RegExp {
     return new RegExp( pattern.replace( /(\.[\w\d]+)$/, "$1\$" ) );
 }
 
-function uncover( path: string, covers: number = 1 ): string {
+function uncover( path: string, covers = 1 ): string {
     return path.replace( RegExp( `^\\.?\\/([^/]+\\/){0,${ covers }}` ), "" );
 }

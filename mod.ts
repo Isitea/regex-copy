@@ -1,0 +1,1 @@
+export { regexCopy } from "./deno/src/deno.ts";

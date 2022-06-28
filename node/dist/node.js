@@ -8,7 +8,7 @@ export async function regexCopy(paths, opts) {
             const isInclude = (regex) => regex.test(fullpath);
             if (entry.isDirectory()) {
                 const isEmpty = await worker({ src: `${src}/${entry.name}`, base });
-                if (removeEmpty && isEmpty.length === 0) {
+                if (removeEmpty && isEmpty === 0) {
                     if (test)
                         console.log(`rm Dir: ${src}/${entry.name}`);
                     else
@@ -38,14 +38,14 @@ export async function regexCopy(paths, opts) {
                 //}
             }
         }
-        return readdir(src);
+        return [...(await readdir(src))].length;
     }
     const dst = entryPoint(paths.pop());
     const { flat = 1, removeEmpty = true, test = false } = opts;
     const { enlist = [], exclude = [], remove = [], preserve = [] } = Object.fromEntries(Object.entries(opts).filter(([, value]) => (value instanceof Array)).map(([key, value]) => [key, value.map(Glob2Regex)]));
     enlist.push(...paths.filter(path => !!path.match(/\*/)).map(Glob2Regex));
     paths = paths.map(entryPoint);
-    let flag = {};
+    const flag = {};
     for (const src of paths) {
         if (!flag[src])
             flag[src] = true;

@@ -31,7 +31,7 @@ $ rgcp './src' './dist' -e '**/*.ts' -r '**/*.js' -p '**/*.ts'
 - `--regex-preserve`: Determines which files to preserve in regular expression. It takes Array expressed by JSON string as a parameter.
 - `-f`, `--flat`: Determines uncovering folder level.
 - `-t`: Whether to test targets. If this flag set as `true`, no file system action will be performed
-## As a es-module
+## As an es-module
 ```js
 import { regexCopy } from "regex-copy";
 regexCopy( [ ...[ paths ], dest ], { enlist, exclude, remove, preserve, flat, removeEmpty, test } )// Returns a Promise with undefined.
@@ -42,7 +42,10 @@ import { regexCopy } from "regex-copy";
 regexCopy( [ "C:/Users/Isitea/AppData/Local/Temp", "C:/Users/Default/AppData/Local/Temp", "C:/Temp" ], { exclude: [ /.+/, "**/*" ], remove: [ "**/*.tmp" ], preserve: [ "**/*" ], test: true } );
 ```
 
-##
+## As an es-module for Deno
+```ts
+import { regexCopy } from "https://deno.land/x/regex-copy@v1.0.1/mod.ts";
+```
 
 
 ### Arguments:
@@ -56,6 +59,6 @@ regexCopy( [ "C:/Users/Isitea/AppData/Local/Temp", "C:/Users/Default/AppData/Loc
 | `options.remove` | `Array<RegExp,string>` | No | `[]` | Regular expression / glob pattern that determines which files to copy |
 | `options.preserve` | `Array<RegExp,string>` | No | `[]` | Regular expression / glob pattern that determines which files to copy |
 | `options.flat` | `number` | No | `1` | Determines uncovering folder level. |
-| `options.removeEmpty` | `boolean` | No | `true` | Wheter to remove empty source folder after remove |
+| `options.removeEmpty` | `boolean` | No | `true` | Whether to remove empty source folder after remove |
 | `options.test` | `boolean` | No | `false` | Whether to test targets. If this flag set as `true`, no file system action will be performed |
 
