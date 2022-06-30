@@ -44,7 +44,7 @@ regexCopy( [ "C:/Users/Isitea/AppData/Local/Temp", "C:/Users/Default/AppData/Loc
 
 ## As an es-module for Deno
 ```ts
-import { regexCopy } from "https://deno.land/x/regex-copy@v1.0.1/mod.ts";
+import { regexCopy } from "https://deno.land/x/regex_copy@1.0.2/mod.ts";
 ```
 
 

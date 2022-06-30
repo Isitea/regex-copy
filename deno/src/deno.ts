@@ -57,11 +57,11 @@ export async function regexCopy( paths: Array<string>, opts: Options ): Promise<
 
         return [ ...Deno.readDirSync( src ) ].length;
     }
-    const dst = entryPoint( <string>paths.pop() );
+    const dst = await entryPoint( <string>paths.pop() );
     const { flat = 1, removeEmpty = true, test = false } = opts;
     const { enlist = [], exclude = [], remove = [], preserve = [] }: OptionsInRegex = <OptionsInRegex>Object.fromEntries( Object.entries( opts ).filter( ( [ , value ] ) => ( value instanceof Array ) ).map( ( [ key, value ] ) => [ key, value.map( Glob2Regex ) ] ) );
     enlist.push( ...paths.filter( path => !!path.match( /\*/ ) ).map( Glob2Regex ) );
-    paths = paths.map( entryPoint );
+    paths = await Promise.all( paths.map( entryPoint ) );
     const flag = {} as Paths;
     for ( const src of paths ) {
         if ( !flag[ src ] ) flag[ src ] = true;
@@ -70,8 +70,12 @@ export async function regexCopy( paths: Array<string>, opts: Options ): Promise<
     }
 }
 
-export function entryPoint( source: string ): string {
-    return Deno.realPathSync( source.replace( /\\/g, "/" ).replace( /(!?{|\*).+$/, "" ) );
+export function entryPoint( source: string ): Promise<string> {
+    let path = source.replace( /\\/g, "/" ).replace( /(!?{|\*).?$/, "" ).replace( /\/$/, "" );
+    while ( Deno.statSync( path ).isFile ) {
+        path = path.replace( /\/[^/]+$/, "" );
+    }
+    return Deno.realPath( path );
 }
 
 function Glob2Regex( pattern: string | RegExp ): RegExp {

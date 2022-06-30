@@ -1,6 +1,6 @@
 {
     "name": "regex-copy",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Copy and remove files with glob pattern(**,*,{},!{}) and regular expression for Deno",
     "main": "./mod.ts",
     "tasks": {

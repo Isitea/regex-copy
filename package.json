@@ -1,6 +1,6 @@
 {
   "name": "regex-copy",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Copy and remove files with glob pattern(**,*,{},!{}) and regular expression",
   "bin": {
     "regex-copy": "./node/bin/regex-copy.js",
@@ -9,7 +9,7 @@
   "scripts": {
     "dist:node": "tsc"
   },
-  "main": "node/src/node.js",
+  "main": "node/dist/node.js",
   "keywords": [
     "copy",
     "remove",
