@@ -1,4 +1,4 @@
-import { opendir, rmdir, readdir, cp, rm } from "node:fs/promises";
+import { opendir, rmdir, readdir, cp, rm, stat } from "node:fs/promises";
 import { posix } from "node:path";
 const absPath = posix.resolve;
 export async function regexCopy(paths, opts) {
@@ -40,11 +40,11 @@ export async function regexCopy(paths, opts) {
         }
         return [...(await readdir(src))].length;
     }
-    const dst = entryPoint(paths.pop());
+    const dst = await entryPoint(paths.pop());
     const { flat = 1, removeEmpty = true, test = false } = opts;
     const { enlist = [], exclude = [], remove = [], preserve = [] } = Object.fromEntries(Object.entries(opts).filter(([, value]) => (value instanceof Array)).map(([key, value]) => [key, value.map(Glob2Regex)]));
     enlist.push(...paths.filter(path => !!path.match(/\*/)).map(Glob2Regex));
-    paths = paths.map(entryPoint);
+    paths = await Promise.all(paths.map(entryPoint));
     const flag = {};
     for (const src of paths) {
         if (!flag[src])
@@ -54,8 +54,12 @@ export async function regexCopy(paths, opts) {
         await worker({ src, base: src.replace(/(?<base>.*)\/(.+?)$/, "$<base>") });
     }
 }
-export function entryPoint(source) {
-    return absPath(source.replace(/\\/g, "/").replace(/(!?{|\*).+$/, ""));
+export async function entryPoint(source) {
+    let path = source.replace(/\\/g, "/").replace(/(!?{|\*).?$/, "").replace(/\/$/, "");
+    while ((await stat(path)).isFile()) {
+        path = path.replace(/\/[^/]+$/, "");
+    }
+    return absPath(path);
 }
 function Glob2Regex(pattern) {
     if (pattern instanceof RegExp)

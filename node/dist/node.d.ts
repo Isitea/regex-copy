@@ -8,4 +8,4 @@ export interface Options {
     test?: boolean;
 }
 export declare function regexCopy(paths: Array<string>, opts: Options): Promise<void>;
-export declare function entryPoint(source: string): string;
+export declare function entryPoint(source: string): Promise<string>;
