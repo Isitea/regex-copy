@@ -1,4 +1,5 @@
-import { opendir, rmdir, readdir, cp, rm, stat } from "node:fs/promises";
+import { statSync, rmSync, cpSync, rmdirSync } from "fs";
+import { opendir, readdir, cp } from "node:fs/promises";
 import { posix } from "node:path";
 const absPath = posix.resolve;
 
@@ -7,24 +8,26 @@ interface Path {
     base: string
 }
 
-export interface Options {
-    enlist?: Array<string | RegExp>,
-    exclude: Array<string | RegExp>,
-    remove: Array<string | RegExp>,
-    preserve: Array<string | RegExp>,
-    flat: number,
-    removeEmpty: boolean,
-    test?: boolean
+interface Options {
+    enlist?: Array<string | RegExp>;
+    exclude?: Array<string | RegExp>;
+    remove?: Array<string | RegExp>;
+    preserve?: Array<string | RegExp>;
+    flat?: number;
+    removeEmpty?: boolean;
+    test?: boolean;
+    reset?: boolean;
 }
 
 interface OptionsInRegex {
-    enlist?: Array<RegExp>,
-    exclude: Array<RegExp>,
-    remove: Array<RegExp>,
-    preserve: Array<RegExp>,
-    flat: number,
-    removeEmpty: boolean,
-    test?: boolean
+    enlist?: Array<RegExp>;
+    exclude?: Array<RegExp>;
+    remove?: Array<RegExp>;
+    preserve?: Array<RegExp>;
+    flat?: number;
+    removeEmpty?: boolean;
+    test?: boolean;
+    reset?: boolean;
 }
 
 type Paths = {
@@ -32,64 +35,91 @@ type Paths = {
 }
 
 export async function regexCopy( paths: Array<string>, opts: Options ): Promise<void> {
-    async function worker( { src, base }: Path ): Promise<number> {
+    async function walker( { src, base }: Path ): Promise<number> {
         for await ( const entry of await opendir( src ) ) {
             const fullpath = `${ src }/${ entry.name }`;
-            const isInclude = ( regex: RegExp ): boolean => regex.test( fullpath );
             if ( entry.isDirectory() ) {
-                const isEmpty = await worker( { src: `${ src }/${ entry.name }`, base } );
+                const isEmpty = await walker( { src: `${ src }/${ entry.name }`, base } );
                 if ( removeEmpty && isEmpty === 0 ) {
                     if ( test ) console.log( `rm Dir: ${ src }/${ entry.name }` );
-                    else rmdir( fullpath );
+                    else rmdirSync( fullpath );
                 }
             }
             else {
-                if ( enlist.some( isInclude ) && !exclude.some( isInclude ) ) {
-                    if ( test ) {
-                        console.log( `  From: ${ fullpath }` );
-                        console.log( `cp  To: ${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
-                    }
-                    else await cp( fullpath, `${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
-                }
-                //else if ( test ) {
-                //    console.log( `cpPass: ${ fullpath }` )
-                //}
-
-                if ( remove.some( isInclude ) && !preserve.some( isInclude ) ) {
-                    if ( test ) console.log( `rmFile: ${ fullpath }` )
-                    else await rm( fullpath );
-                }
-                //else if ( test ) {
-                //    console.log( `rmPass: ${ fullpath }` )
-                //}
+                fileSystem( fullpath, base );
             }
         }
 
         return [ ...( await readdir( src ) ) ].length;
     }
-    const dst = await entryPoint( <string>paths.pop() );
-    const { flat = 1, removeEmpty = true, test = false } = opts;
-    const { enlist = [], exclude = [], remove = [], preserve = [] }: OptionsInRegex = <OptionsInRegex>Object.fromEntries( Object.entries( opts ).filter( ( [ , value ] ) => ( value instanceof Array ) ).map( ( [ key, value ] ) => [ key, value.map( Glob2Regex ) ] ) );
-    enlist.push( ...paths.filter( path => !!path.match( /\*/ ) ).map( Glob2Regex ) );
-    paths = await Promise.all( paths.map( entryPoint ) );
+
+    function fileSystem( source: string, pathBase: string ): void {
+        const isInclude = ( regex: RegExp ): boolean => regex.test( source );
+        if ( enlist.some( isInclude ) && !exclude.some( isInclude ) ) {
+            if ( test ) {
+                console.log( `  From: ${ source }` );
+                console.log( `cp  To: ${ dst }/${ uncover( source.replace( pathBase, "" ), flat ) }` );
+            }
+            else cpSync( source, `${ dst }/${ uncover( source.replace( pathBase, "" ), flat ) }` );
+        }
+        if ( remove.some( isInclude ) && !preserve.some( isInclude ) ) {
+            if ( test ) console.log( `rmFile: ${ source }` )
+            else rmSync( source );
+        }
+    }
+
+    const { flat = 1, removeEmpty = true, test = false, reset = false } = opts;
+    const { enlist = [], exclude = [], remove = [], preserve = [] }: OptionsInRegex
+        = <OptionsInRegex>Object.fromEntries(
+            Object.entries( opts )
+                .filter( ( [ , value ] ) => ( value instanceof Array ) )
+                .map( ( [ key, value ] ) => [ key, value.map( Glob2Regex ) ] )
+        );
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sPaths = paths.filter( ( descript: string ) => ( !!descript.match( "->" ) ) );
+    const nPaths = paths.filter( ( descript: string ) => ( !descript.match( "->" ) ) );
+    const dst = entryPoint( <string>nPaths.pop() );
+    enlist.push( ...nPaths.filter( ( descript: string ) => ( !descript.match( "->" ) ) ).map( Glob2Regex ) );
+    try {
+        if ( statSync( dst ) && reset ) {
+            rmSync( dst, { recursive: true } );
+        }
+    }
+    // eslint-disable-next-line no-empty
+    catch { }
+
     const flag = {} as Paths;
-    for ( const src of paths ) {
+    for ( const src of nPaths.map( entryPoint ) ) {
         if ( !flag[ src ] ) flag[ src ] = true;
         else continue;
-        await worker( { src, base: src.replace( /(?<base>.*)\/(.+?)$/, "$<base>" ) } );
+        await walker( { src, base: src.replace( /(?<base>.*)\/(.+?)$/, "$<base>" ) } );
     }
 }
 
-export async function entryPoint( source: string ): Promise<string> {
-    let path = source.replace( /\\/g, "/" ).replace( /(!?{|\*).?$/, "" ).replace( /\/$/, "" );
-    while ( ( await stat( path ) ).isFile() ) {
-        path = path.replace( /\/[^/]+$/, "" );
+export function entryPoint( source: string, isSource = -1 ): string {
+    let path = source.replace( /\\/g, "/" ).replace( /(!?{|\*).*/, "" ).replace( /\/$/, "" );
+    if ( isSource > -1 ) {
+        while ( statSync( path ).isFile() ) {
+            path = path.replace( /\/[^/]+$/, "" );
+        }
     }
     return absPath( path );
 }
 
 function Glob2Regex( pattern: string | RegExp ): RegExp {
     if ( pattern instanceof RegExp ) return pattern;
+    try {
+        const ctrl = statSync( pattern.replace( /\/$/, "" ) );
+        if ( ctrl.isDirectory() ) {
+            pattern = `${ pattern.replace( /\/$/, "" ) }/**/*`
+        }
+        else if ( ctrl.isFile() ) {
+            return new RegExp( pattern.replace( /\//g, "\\/" ).replace( /\./g, "\\." ) );
+        }
+    }
+    // eslint-disable-next-line no-empty
+    catch { }
     pattern = pattern.replace( /^(\.\.?\/)+/, "" )
         .replace( /\?/g, "." )
         .replace( /(?<!\*)\*(?!\*)/g, "[^/]+" )
@@ -98,7 +128,7 @@ function Glob2Regex( pattern: string | RegExp ): RegExp {
         pattern = pattern.replace( matched, matched.replace( /,/g, "|" ).replace( /!{([^}]+?)}/, "(?!($1))[^/]*" ).replace( /{([^}]+?)}/, "($1)[^/]*" ) );
     }
 
-    return new RegExp( pattern.replace( /(\.[\w\d]+)$/, "$1\$" ) );
+    return new RegExp( pattern.replace( /(\.[\w\d]+)$/, "$1$" ) );
 }
 
 function uncover( path: string, covers = 1 ): string {

@@ -3,24 +3,26 @@ interface Path {
     base: string
 }
 
-export interface Options {
-    enlist?: Array<string | RegExp>,
-    exclude: Array<string | RegExp>,
-    remove: Array<string | RegExp>,
-    preserve: Array<string | RegExp>,
-    flat: number,
-    removeEmpty: boolean,
-    test?: boolean
+interface Options {
+    enlist?: Array<string | RegExp>;
+    exclude?: Array<string | RegExp>;
+    remove?: Array<string | RegExp>;
+    preserve?: Array<string | RegExp>;
+    flat?: number;
+    removeEmpty?: boolean;
+    test?: boolean;
+    reset?: boolean;
 }
 
 interface OptionsInRegex {
-    enlist?: Array<RegExp>,
-    exclude: Array<RegExp>,
-    remove: Array<RegExp>,
-    preserve: Array<RegExp>,
-    flat: number,
-    removeEmpty: boolean,
-    test?: boolean
+    enlist?: Array<RegExp>;
+    exclude?: Array<RegExp>;
+    remove?: Array<RegExp>;
+    preserve?: Array<RegExp>;
+    flat?: number;
+    removeEmpty?: boolean;
+    test?: boolean;
+    reset?: boolean;
 }
 
 type Paths = {
@@ -28,58 +30,100 @@ type Paths = {
 }
 
 export async function regexCopy( paths: Array<string>, opts: Options ): Promise<void> {
-    async function worker( { src, base }: Path ): Promise<number> {
+    async function walker( { src, base }: Path ): Promise<number> {
         for await ( const entry of Deno.readDir( src ) ) {
             const fullpath = `${ src }/${ entry.name }`;
-            const isInclude = ( regex: RegExp ): boolean => regex.test( fullpath );
             if ( entry.isDirectory ) {
-                const isEmpty = await worker( { src: `${ src }/${ entry.name }`, base } );
+                const isEmpty = await walker( { src: `${ src }/${ entry.name }`, base } );
                 if ( removeEmpty && isEmpty === 0 ) {
                     if ( test ) console.log( `rm Dir: ${ src }/${ entry.name }` );
                     else Deno.remove( fullpath );
                 }
             }
             else {
-                if ( enlist.some( isInclude ) && !exclude.some( isInclude ) ) {
-                    if ( test ) {
-                        console.log( `  From: ${ fullpath }` );
-                        console.log( `cp  To: ${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
-                    }
-                    else await Deno.copyFile( fullpath, `${ dst }/${ uncover( fullpath.replace( base, "" ), flat ) }` );
-                }
-
-                if ( remove.some( isInclude ) && !preserve.some( isInclude ) ) {
-                    if ( test ) console.log( `rmFile: ${ fullpath }` )
-                    else await Deno.remove( fullpath );
-                }
+                fileSystem( fullpath, base );
             }
         }
 
         return [ ...Deno.readDirSync( src ) ].length;
     }
-    const dst = await entryPoint( <string>paths.pop() );
-    const { flat = 1, removeEmpty = true, test = false } = opts;
-    const { enlist = [], exclude = [], remove = [], preserve = [] }: OptionsInRegex = <OptionsInRegex>Object.fromEntries( Object.entries( opts ).filter( ( [ , value ] ) => ( value instanceof Array ) ).map( ( [ key, value ] ) => [ key, value.map( Glob2Regex ) ] ) );
-    enlist.push( ...paths.filter( path => !!path.match( /\*/ ) ).map( Glob2Regex ) );
-    paths = await Promise.all( paths.map( entryPoint ) );
+
+    function fileSystem( source: string, pathBase: string ): void {
+        const isInclude = ( regex: RegExp ): boolean => regex.test( source );
+        const copyTarget = enlist.some( isInclude ) && !exclude.some( isInclude );
+        if ( remove.some( isInclude ) && !preserve.some( isInclude ) ) {
+            if ( copyTarget ) {
+                if ( test ) {
+                    console.log( `  From: ${ source }` );
+                    console.log( `cp  To: ${ dst }/${ uncover( source.replace( pathBase, "" ), flat ) }` );
+                }
+                else Deno.copyFileSync( source, `${ dst }/${ uncover( source.replace( pathBase, "" ), flat ) }` );
+            }
+            if ( test ) console.log( `rmFile: ${ source }` )
+            else Deno.removeSync( source );
+        }
+        else if ( copyTarget ) {
+            if ( test ) {
+                console.log( `  From: ${ source }` );
+                console.log( `cp  To: ${ dst }/${ uncover( source.replace( pathBase, "" ), flat ) }` );
+            }
+            else Deno.copyFile( source, `${ dst }/${ uncover( source.replace( pathBase, "" ), flat ) }` );
+        }
+    }
+
+    const { flat = 1, removeEmpty = true, test = false, reset = false } = opts;
+    const { enlist = [], exclude = [], remove = [], preserve = [] }: OptionsInRegex
+        = <OptionsInRegex>Object.fromEntries(
+            Object.entries( opts )
+                .filter( ( [ , value ] ) => ( value instanceof Array ) )
+                .map( ( [ key, value ] ) => [ key, value.map( Glob2Regex ) ] )
+        );
+
+    // deno-lint-ignore no-unused-vars
+    const sPaths = paths.filter( ( descript: string ) => ( !!descript.match( "->" ) ) );
+    const nPaths = paths.filter( ( descript: string ) => ( !descript.match( "->" ) ) );
+    const dst = entryPoint( <string>nPaths.pop() );
+    enlist.push( ...nPaths.filter( ( descript: string ) => ( !descript.match( "->" ) ) ).map( Glob2Regex ) );
+    try {
+        if ( Deno.statSync( dst ) && reset ) {
+            Deno.removeSync( dst, { recursive: true } );
+        }
+    }
+    // deno-lint-ignore no-empty
+    catch { }
+
     const flag = {} as Paths;
-    for ( const src of paths ) {
+    for ( const src of nPaths.map( entryPoint ) ) {
         if ( !flag[ src ] ) flag[ src ] = true;
         else continue;
-        await worker( { src, base: src.replace( /(?<base>.*)\/(.+?)$/, "$<base>" ) } );
+        await walker( { src, base: src.replace( /(?<base>.*)\/(.+?)$/, "$<base>" ) } );
     }
 }
 
-export function entryPoint( source: string ): Promise<string> {
-    let path = source.replace( /\\/g, "/" ).replace( /(!?{|\*).?$/, "" ).replace( /\/$/, "" );
-    while ( Deno.statSync( path ).isFile ) {
-        path = path.replace( /\/[^/]+$/, "" );
+export function entryPoint( source: string, isSource = -1 ): string {
+    let path = source.replace( /\\/g, "/" ).replace( /(!?{|\*).*$/, "" ).replace( /\/$/, "" );
+    if ( isSource > -1 ) {
+        while ( Deno.statSync( path ).isFile ) {
+            path = path.replace( /\/[^/]+$/, "" );
+        }
     }
-    return Deno.realPath( path );
+
+    return Deno.realPathSync( path );
 }
 
 function Glob2Regex( pattern: string | RegExp ): RegExp {
     if ( pattern instanceof RegExp ) return pattern;
+    try {
+        const ctrl = Deno.statSync( pattern.replace( /\/$/, "" ) );
+        if ( ctrl.isDirectory ) {
+            pattern = `${ pattern.replace( /\/$/, "" ) }/**/*`
+        }
+        else if ( ctrl.isFile ) {
+            return new RegExp( pattern.replace( /\//g, "\\/" ).replace( /\./g, "\\." ) );
+        }
+    }
+    // deno-lint-ignore no-empty
+    catch { }
     pattern = pattern.replace( /^(\.\.?\/)+/, "" )
         .replace( /\?/g, "." )
         .replace( /(?<!\*)\*(?!\*)/g, "[^/]+" )
@@ -88,7 +132,7 @@ function Glob2Regex( pattern: string | RegExp ): RegExp {
         pattern = pattern.replace( matched, matched.replace( /,/g, "|" ).replace( /!{([^}]+?)}/, "(?!($1))[^/]*" ).replace( /{([^}]+?)}/, "($1)[^/]*" ) );
     }
 
-    return new RegExp( pattern.replace( /(\.[\w\d]+)$/, "$1\$" ) );
+    return new RegExp( pattern.replace( /(\.[\w\d]+)$/, "$1$" ) );
 }
 
 function uncover( path: string, covers = 1 ): string {

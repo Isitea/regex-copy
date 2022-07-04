@@ -31,6 +31,7 @@ $ rgcp './src' './dist' -e '**/*.ts' -r '**/*.js' -p '**/*.ts'
 - `--regex-preserve`: Determines which files to preserve in regular expression. It takes Array expressed by JSON string as a parameter.
 - `-f`, `--flat`: Determines uncovering folder level.
 - `-t`: Whether to test targets. If this flag set as `true`, no file system action will be performed
+- `--reset`: Whether to empty destination before copying. If this flag set as `true`, empty destination directory before copying files
 ## As an es-module
 ```js
 import { regexCopy } from "regex-copy";
@@ -39,12 +40,12 @@ regexCopy( [ ...[ paths ], dest ], { enlist, exclude, remove, preserve, flat, re
 ### Example
 ```js
 import { regexCopy } from "regex-copy";
-regexCopy( [ "C:/Users/Isitea/AppData/Local/Temp", "C:/Users/Default/AppData/Local/Temp", "C:/Temp" ], { exclude: [ /.+/, "**/*" ], remove: [ "**/*.tmp" ], preserve: [ "**/*" ], test: true } );
+regexCopy( [ "C:/Users/Isitea/AppData/Local/Temp", "C:/Users/Default/AppData/Local/Temp", "C:/Temp" ], { exclude: [ /.+/, "**/*" ], remove: [ "**/*.tmp" ], preserve: [ "**/*" ], test: true, reset: true } );
 ```
 
 ## As an es-module for Deno
 ```ts
-import { regexCopy } from "https://deno.land/x/regex_copy@1.0.2/mod.ts";
+import { regexCopy } from "https://deno.land/x/regex_copy@1.0.3/mod.ts";
 ```
 
 
@@ -60,5 +61,5 @@ import { regexCopy } from "https://deno.land/x/regex_copy@1.0.2/mod.ts";
 | `options.preserve` | `Array<RegExp,string>` | No | `[]` | Regular expression / glob pattern that determines which files to copy |
 | `options.flat` | `number` | No | `1` | Determines uncovering folder level. |
 | `options.removeEmpty` | `boolean` | No | `true` | Whether to remove empty source folder after remove |
+| `options.reset` | `boolean` | No | `false` | Whether to empty destination before copying. If this flag set as `true`, empty destination directory before copying files |
 | `options.test` | `boolean` | No | `false` | Whether to test targets. If this flag set as `true`, no file system action will be performed |
-

@@ -1,7 +1,7 @@
-import { regexCopy, entryPoint, Options } from "../src/deno.ts";
+import { regexCopy, entryPoint } from "../src/deno.ts";
 
 const [ , , ...args ] = Deno.args;
-const opts: Options = { exclude: [], remove: [], preserve: [], flat: 1, removeEmpty: true, test: false };
+const opts = { exclude: [] as Array<string | RegExp>, remove: [] as Array<string | RegExp>, preserve: [] as Array<string | RegExp>, flat: 1, removeEmpty: true, test: false, reset: false };
 const cliConfig = {
     "-e": "exclude", "-E": "exclude",
     "--exclude": "exclude", "--regex-exclude": "exclude",
@@ -9,6 +9,7 @@ const cliConfig = {
     "--remove": "remove", "--regex-remove": "remove",
     "-p": "preserve", "-P": "preserve",
     "--preserve": "preserve", "--regex-preserve": "preserve",
+    "--reset": "reset",
 }
 let paths: string[] = [];
 function checkValidity( path: string ): boolean {
@@ -74,6 +75,10 @@ async function main() {
             case "--flat": {
                 opts.flat = parseInt( args[ ++i ] );
                 if ( opts.flat < 0 ) opts.flat = 0;
+                break;
+            }
+            case "--reset": {
+                opts.reset = true;
                 break;
             }
             default:

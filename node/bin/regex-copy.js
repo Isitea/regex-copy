@@ -11,6 +11,7 @@ const cliConfig = {
     "--remove": "remove", "--regex-remove": "remove",
     "-p": "preserve", "-P": "preserve",
     "--preserve": "preserve", "--regex-preserve": "preserve",
+    "--reset": "reset",
 }
 let paths = [];
 function checkValidity ( path ) {
@@ -87,6 +88,10 @@ async function main () {
             case "--flat": {
                 opts.flat = parseInt( args[ ++i ] );
                 if ( opts.flat < 0 ) opts.flat = 0;
+                break;
+            }
+            case "--reset": {
+                opts.reset = true;
                 break;
             }
             default:
